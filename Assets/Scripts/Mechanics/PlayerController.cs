@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Platformer.Gameplay;
@@ -27,6 +27,31 @@ namespace Platformer.Mechanics
         /// Initial jump velocity at the start of a jump.
         /// </summary>
         public float jumpTakeOffSpeed = 7;
+
+        // ──────────────────────────────────────────────
+        //  Multi-Jump Configuration
+        // ──────────────────────────────────────────────
+
+        /// <summary>
+        /// Total number of jumps allowed before the player must land.
+        /// Set to 2 for double-jump, 3 for triple-jump, etc.
+        /// Adjustable from the Inspector.
+        /// </summary>
+        [SerializeField] public int maxJumps = 2;
+
+        /// <summary>
+        /// Force multiplier applied to mid-air jumps (2nd jump onward).
+        /// Values less than 1 make air jumps weaker; greater than 1 makes them stronger.
+        /// </summary>
+        [SerializeField] public float airJumpForceMultiplier = 0.85f;
+
+        /// <summary>
+        /// Tracks how many jumps the player has performed since last touching ground.
+        /// Resets to 0 on landing.
+        /// </summary>
+        private int jumpCount = 0;
+
+        // ──────────────────────────────────────────────
 
         public JumpState jumpState = JumpState.Grounded;
         private bool stopJump;
@@ -66,8 +91,12 @@ namespace Platformer.Mechanics
             if (controlEnabled)
             {
                 move.x = m_MoveAction.ReadValue<Vector2>().x;
-                if (jumpState == JumpState.Grounded && m_JumpAction.WasPressedThisFrame())
-                    jumpState = JumpState.PrepareToJump;
+
+                // ── Desktop input: Spacebar / Gamepad via InputSystem ──
+                if (m_JumpAction.WasPressedThisFrame())
+                {
+                    TryJump();
+                }
                 else if (m_JumpAction.WasReleasedThisFrame())
                 {
                     stopJump = true;
@@ -80,6 +109,42 @@ namespace Platformer.Mechanics
             }
             UpdateJumpState();
             base.Update();
+        }
+
+        // ──────────────────────────────────────────────
+        //  Mobile UI Button Hook
+        // ──────────────────────────────────────────────
+        //
+        //  HOW TO WIRE UP IN UNITY:
+        //  1. Select your "Up Arrow" / Jump UI Button in the Hierarchy.
+        //  2. In the Inspector, find the Button component's "On Click ()" list.
+        //  3. Drag the Player GameObject into the object field.
+        //  4. From the function dropdown, choose:
+        //         PlayerController -> OnJumpButtonPressed()
+        //
+        //  This method is called once per tap, which mirrors GetKeyDown behavior.
+        // ──────────────────────────────────────────────
+
+        /// <summary>
+        /// Public method designed to be called from a Mobile UI Button's OnClick event.
+        /// Triggers a jump if the player has remaining jumps and controls are enabled.
+        /// </summary>
+        public void OnJumpButtonPressed()
+        {
+            if (!controlEnabled) return;
+            TryJump();
+        }
+
+        /// <summary>
+        /// Central jump-request method used by both Desktop and Mobile input paths.
+        /// Checks the jump counter against maxJumps and initiates the jump if allowed.
+        /// </summary>
+        private void TryJump()
+        {
+            if (jumpCount < maxJumps)
+            {
+                jumpState = JumpState.PrepareToJump;
+            }
         }
 
         void UpdateJumpState()
@@ -114,9 +179,23 @@ namespace Platformer.Mechanics
 
         protected override void ComputeVelocity()
         {
-            if (jump && IsGrounded)
+            if (jump)
             {
-                velocity.y = jumpTakeOffSpeed * model.jumpModifier;
+                if (IsGrounded)
+                {
+                    // ── First jump from the ground ──
+                    velocity.y = jumpTakeOffSpeed * model.jumpModifier;
+                    jumpCount = 1;
+                }
+                else if (jumpCount > 0 && jumpCount < maxJumps)
+                {
+                    // ── Mid-air jump (double-jump, triple-jump, etc.) ──
+                    // Cancel any existing downward velocity so the air jump feels crisp,
+                    // then apply the jump force scaled by airJumpForceMultiplier.
+                    velocity.y = jumpTakeOffSpeed * model.jumpModifier * airJumpForceMultiplier;
+                    jumpCount++;
+                }
+
                 jump = false;
             }
             else if (stopJump)
@@ -126,6 +205,12 @@ namespace Platformer.Mechanics
                 {
                     velocity.y = velocity.y * model.jumpDeceleration;
                 }
+            }
+
+            // ── Reset jump counter on landing ──
+            if (IsGrounded && jumpState == JumpState.Grounded)
+            {
+                jumpCount = 0;
             }
 
             if (move.x > 0.01f)

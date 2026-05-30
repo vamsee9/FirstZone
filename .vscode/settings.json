@@ -1,0 +1,22 @@
+{
+    "dotnet.defaultSolution": "FirstZone.sln",
+    "dotnet.dotnetPath": "C:/Program Files/dotnet/dotnet.exe",
+    "dotrush.roslyn.dotnetSdkDirectory": "C:/Program Files/dotnet/sdk/10.0.300",
+    "dotrush.msbuildProperties": {
+        "DefineConstants": "UNITY_EDITOR"
+    },
+    "dotrush.roslyn.projectOrSolutionFiles": [
+        "D:/GE/FirstZone/FirstZone.sln"
+    ],
+    "dotrush.roslyn.restoreProjectsBeforeLoading": false,
+    "files.exclude": {
+        "**/.git": true,
+        "**/.DS_Store": true,
+        "**/Library": true,
+        "**/Temp": true,
+        "**/Logs": true,
+        "**/UserSettings": true,
+        "**/obj": true,
+        "**/*.meta": false
+    }
+}
