@@ -46,7 +46,14 @@ namespace Platformer.Gameplay
             }
             else
             {
-                Schedule<PlayerDeath>();
+                // Deal half-heart damage (1 HP) instead of instant death.
+                // Health.TakeDamage handles invincibility frames and fires
+                // HealthIsZero → PlayerDeath when HP reaches 0.
+                var playerHealth = player.GetComponent<Health>();
+                if (playerHealth != null)
+                {
+                    playerHealth.TakeDamage(1);
+                }
             }
         }
     }

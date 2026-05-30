@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using Platformer.Gameplay;
 using UnityEngine;
@@ -15,11 +15,23 @@ namespace Platformer.Mechanics
         public PatrolPath path;
         public AudioClip ouch;
 
+        [Header("Contact Damage")]
+        [Tooltip("Seconds between each contact damage tick while the player stays touching this enemy.")]
+        public float contactDamageInterval = 1f;
+
+        [Tooltip("HP removed per contact damage tick (1 = half a heart).")]
+        public int contactDamageAmount = 1;
+
         internal PatrolPath.Mover mover;
         internal AnimationController control;
         internal Collider2D _collider;
         internal AudioSource _audio;
         SpriteRenderer spriteRenderer;
+
+        /// <summary>
+        /// Timer tracking time since last contact damage tick.
+        /// </summary>
+        private float contactDamageTimer = 0f;
 
         public Bounds Bounds => _collider.bounds;
 
@@ -39,6 +51,43 @@ namespace Platformer.Mechanics
                 var ev = Schedule<PlayerEnemyCollision>();
                 ev.player = player;
                 ev.enemy = this;
+
+                // Reset timer so the first stay-tick doesn't fire immediately
+                contactDamageTimer = 0f;
+            }
+        }
+
+        /// <summary>
+        /// Deals continuous contact damage while the player remains touching this enemy.
+        /// Damage is applied every contactDamageInterval seconds (default 1s).
+        /// </summary>
+        void OnCollisionStay2D(Collision2D collision)
+        {
+            var player = collision.gameObject.GetComponent<PlayerController>();
+            if (player == null) return;
+
+            contactDamageTimer += Time.deltaTime;
+
+            if (contactDamageTimer >= contactDamageInterval)
+            {
+                contactDamageTimer = 0f;
+
+                var health = player.GetComponent<Health>();
+                if (health != null && health.IsAlive)
+                {
+                    health.TakeDamage(contactDamageAmount);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Reset the contact damage timer when the player separates from this enemy.
+        /// </summary>
+        void OnCollisionExit2D(Collision2D collision)
+        {
+            if (collision.gameObject.GetComponent<PlayerController>() != null)
+            {
+                contactDamageTimer = 0f;
             }
         }
 

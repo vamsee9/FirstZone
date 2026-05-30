@@ -16,7 +16,12 @@ namespace Platformer.Gameplay
 
         public override void Execute()
         {
-            Simulation.Schedule<PlayerDeath>(0);
+            // Instantly drain all health so the hearts empty and PlayerDeath triggers
+            var player = model.player;
+            if (player != null && player.health.IsAlive)
+            {
+                player.health.Die();
+            }
         }
     }
 }
